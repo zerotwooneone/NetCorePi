@@ -8,7 +8,7 @@ namespace MvcApp.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class LedController : ControllerBase
+    public class PinController : ControllerBase
     {
         private static readonly Lazy<GpioController> LazyController = new Lazy<GpioController>(() =>
         {
@@ -21,7 +21,7 @@ namespace MvcApp.Controllers
         const int LightTimeInMilliseconds = 1000;
         const int DimTimeInMilliseconds = 200;
         
-        // GET: api/Led
+        // GET: api/Pin
         [HttpGet]
         public async Task<IActionResult> Get()
         {
@@ -39,26 +39,26 @@ namespace MvcApp.Controllers
 
         private GpioController Controller => LazyController.Value;
 
-        // GET: api/Led/5
+        // GET: api/Pin/5
         [HttpGet("{id}", Name = "Get")]
         public string Get(int id)
         {
             return "value";
         }
 
-        // POST: api/Led
+        // POST: api/Pin
         [HttpPost]
         public void Post([FromBody] string value)
         {
         }
 
-        // PUT: api/Led/5
+        // PUT: api/Pin/5
         [HttpPut("{id}")]
         public void Put(int id, [FromBody] string value)
         {
         }
 
-        // DELETE: api/ApiWithActions/5
+        // DELETE: api/Pin/5
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
