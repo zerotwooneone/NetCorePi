@@ -11,8 +11,8 @@ namespace MvcApp.ComPort
         {
             serviceCollection.TryAddSingleton<ComPortAccessor>();
             
-            serviceCollection.AddConfigObject<SystemConfig>(configuration,"System");
-            serviceCollection.AddConfigObject<ArduinoSerialConfig>(configuration, "ArduinoSerial");
+            serviceCollection.AddValidatableConfigObject<SystemConfig>(configuration,"System");
+            serviceCollection.AddValidatableConfigObject<ArduinoSerialConfig>(configuration, "ArduinoSerial");
             
             return serviceCollection;
         }

@@ -1,4 +1,5 @@
-﻿using MvcApp.JsonConfig;
+﻿using System;
+using MvcApp.JsonConfig;
 
 namespace MvcApp.ComPort
 {
@@ -7,7 +8,7 @@ namespace MvcApp.ComPort
         public string DefaultSerialPort { get; set; }
         public void Validate()
         {
-            int x = 0;
+            if(string.IsNullOrWhiteSpace(DefaultSerialPort)) throw new ApplicationException($"{nameof(SystemConfig)}.{nameof(DefaultSerialPort)} must have a value.");
         }
     }
 }

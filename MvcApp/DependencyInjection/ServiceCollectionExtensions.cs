@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using MvcApp.JsonConfig;
 
 namespace MvcApp.DependencyInjection
 {
@@ -11,9 +12,16 @@ namespace MvcApp.DependencyInjection
         {
             serviceCollection.Configure<T>(configuration.GetSection(sectionPath));
             
-            serviceCollection.TryAddSingleton<T>(sp=>ServiceProviderServiceExtensions.GetRequiredService<IOptionsMonitor<T>>(sp).CurrentValue);
+            serviceCollection.TryAddSingleton<T>(sp=>sp.GetRequiredService<IOptionsMonitor<T>>().CurrentValue);
             
             return serviceCollection;
+        }
+
+        public static IServiceCollection AddValidatableConfigObject<T>(this IServiceCollection serviceCollection, IConfiguration configuration, string sectionPath) where T : class, IValidatableConfig
+        {
+            serviceCollection.AddSingleton<IValidatableConfig>(sp=>sp.GetRequiredService<IOptionsMonitor<T>>().CurrentValue);
+            
+            return serviceCollection.AddConfigObject<T>(configuration, sectionPath);
         }
     }
 }
