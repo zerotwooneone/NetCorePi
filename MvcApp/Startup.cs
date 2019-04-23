@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MvcApp.ComPort;
+using MvcApp.JsonConfig;
 
 namespace MvcApp
 {
@@ -23,6 +25,7 @@ namespace MvcApp
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddTransient<IStartupFilter, SettingValidationStartupFilter>();
             services.Configure<CookiePolicyOptions>(options =>
             {
                 // This lambda determines whether user consent for non-essential cookies is needed for a given request.
@@ -30,6 +33,7 @@ namespace MvcApp
                 options.MinimumSameSitePolicy = SameSiteMode.None;
             });
 
+            services.AddComPort(Configuration);
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }

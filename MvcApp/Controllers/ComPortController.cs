@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO.Ports;
-using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Text;
 using Microsoft.AspNetCore.Mvc;
+using MvcApp.ComPort;
 
 namespace MvcApp.Controllers
 {
@@ -14,23 +14,27 @@ namespace MvcApp.Controllers
     [ApiController]
     public class ComPortController : ControllerBase
     {
+        private readonly ComPortAccessor _comPortAccessor;
+        private readonly ArduinoSerialConfig _arduinoSerialConfig;
+        private readonly SystemConfig _systemConfig;
+
         // GET: api/ComPort
         [HttpGet]
         public IEnumerable<string> Get()
         {
-            return SerialPort.GetPortNames();
+            return _comPortAccessor.GetSystemPortNames();
         }
 
         private static string _selected = null;
-        private static SerialPort _serialPort = null;
+        
         private static ISubject<string> _serialDataSubject = new Subject<string>();
-        public IObservable<string> RawObservable => _serialDataSubject.AsObservable();
+        private static IObservable<string> RawObservable => _serialDataSubject.AsObservable();
 
         private static IObservable<string> RawLines;
         
         static ComPortController()
         {
-            var oneSource = _serialDataSubject
+            var oneSource = RawObservable
                 .Publish()
                 .RefCount();
 
@@ -55,133 +59,66 @@ namespace MvcApp.Controllers
                 .Subscribe(s => { Debug.WriteLine(s); });
         }
 
+        public ComPortController(ComPortAccessor comPortAccessor,
+            ArduinoSerialConfig arduinoSerialConfig,
+            SystemConfig systemConfig)
+        {
+            _comPortAccessor = comPortAccessor;
+            _arduinoSerialConfig = arduinoSerialConfig;
+            _systemConfig = systemConfig;
+        }
+
         // GET: api/ComPort/Selected
         [Route("Selected")]
         [HttpGet]
-        public string GetSelected()
+        public IActionResult GetSelected()
         {
-            var selected = _selected;
-            if (isSelectedValid(selected))
+            var selected = string.IsNullOrWhiteSpace(_selected) ? _systemConfig.DefaultSerialPort : _selected;
+            if (!_comPortAccessor.TryGet(selected, out var serialApi))
             {
-                Response.Headers.Add("Error", $"{selected} is not valid");
-            }
-            return selected;
-        }
-
-        private static bool isSelectedValid(string selected)
-        {
-            return selected !=null && 
-                   !SerialPort.GetPortNames().Contains(selected);
-        }
-
-        // PUT: api/ComPort/Selected
-        [HttpPut]
-        [Route("Selected")]
-        public IActionResult PutSelected([FromBody] string value)
-        {
-            if (isSelectedValid(value))
-            {
-                return BadRequest("Com Port Not Valid");
-            }
-
-            if (_serialPort != null)
-            {
-                try
+                if (_comPortAccessor.TryCreate(selected, out serialApi, ConfigureComPort))
                 {
-                    _serialPort.Close();
-                    
-                }
-                catch (Exception e)
-                {
-                    Debug.WriteLine(e);
-                }
-                finally
-                {
-                    try
+                    if(!serialApi.IsOpen)
                     {
-                        _serialPort.Dispose();
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.WriteLine(e);
-                    }
-                    _serialPort = null;
+                        serialApi.Open();   
+                        serialApi.DataReceived += DataReceived;
+                    } 
+                }else
+                {
+                    return NotFound(selected);
                 }
             }
 
-            const int baudRate=115200;
-            _serialPort = new SerialPort(value, baudRate, Parity.None)
-            {
-                StopBits = StopBits.One,
-                DataBits = 8,
-                Handshake = Handshake.None
-            };
-
-            _serialPort.DataReceived -= DataReceived;
-            _serialPort.DataReceived += DataReceived;
-
-            if (!_serialPort.IsOpen)
-            {
-                _serialPort.Open();
-            }
-
-            _selected = value;
-            return Ok();
+            
+            return Ok(selected);
+        }
+        
+        public void ConfigureComPort(SerialPort serialPort)
+        {
+            ConfigureComPort(serialPort, _arduinoSerialConfig);
         }
 
-        // PUT: api/ComPort/Selected
-        [HttpDelete]
-        [Route("Selected")]
-        public IActionResult DeleteSelected()
+        public static void ConfigureComPort(SerialPort serialPort,
+            ArduinoSerialConfig arduinoSerialConfig)
         {
-            if (string.IsNullOrWhiteSpace(_selected))
-            {
-                return BadRequest("No Com Port Is Selected");
-            }
-            
-            _serialPort.Close();
-            _serialPort.Dispose();
-            _serialPort = null;
-            
-            return Ok();
+            serialPort.BaudRate = arduinoSerialConfig.BaudRate;
+            serialPort.DataBits = arduinoSerialConfig.DataBits;
+            serialPort.Handshake = arduinoSerialConfig.Handshake;
+            serialPort.Parity = arduinoSerialConfig.Parity;
+            serialPort.StopBits = arduinoSerialConfig.StopBits;
         }
 
         private void DataReceived(object sender, SerialDataReceivedEventArgs e)
         {
-            var serialPort = (SerialPort)sender;
+            var serialPort = (SerialApi)sender;
  
             // Read the data that's in the serial buffer.
-            var serialdata = serialPort.ReadExisting();
+            var serialData = serialPort.ReadExisting();
  
             // Write to debug output.
-            Debug.Write(serialdata);
+            Debug.Write(serialData);
 
-            _serialDataSubject.OnNext(serialdata);
+            _serialDataSubject.OnNext(serialData);
         }
-
-        //// GET: api/ComPort/5
-        //[HttpGet("{id}", Name = "Get")]
-        //public string Get(int id)
-        //{
-        //    return "value";
-        //}
-
-        //// POST: api/ComPort
-        //[HttpPost]
-        //public void Post([FromBody] string value)
-        //{
-        //}
-
-        //// PUT: api/ComPort/5
-        //[HttpPut("{id}")]
-        //public void Put(int id, [FromBody] string value)
-        //{
-        //}
-
-        //// DELETE: api/ApiWithActions/5
-        //[HttpDelete("{id}")]
-        //public void Delete(int id)
-        //{
-        //}
     }
 }
